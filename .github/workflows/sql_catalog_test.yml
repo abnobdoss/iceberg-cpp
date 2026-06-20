@@ -43,6 +43,9 @@ jobs:
     name: SQL Catalog (${{ matrix.title }})
     runs-on: ${{ matrix.runs-on }}
     timeout-minutes: 45
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      SCCACHE_GHA_RW_MODE: ${{ github.ref == 'refs/heads/main' && 'READ_WRITE' || 'READ_ONLY' }}
     strategy:
       fail-fast: false
       matrix:
@@ -66,6 +69,8 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696 # v0.0.10
       - name: Set up MSVC Developer Command Prompt
         if: ${{ startsWith(matrix.runs-on, 'windows') }}
         uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
@@ -80,8 +85,15 @@ jobs:
         run: |
           echo "CC=${{ matrix.CC }}" >> $GITHUB_ENV
           echo "CXX=${{ matrix.CXX }}" >> $GITHUB_ENV
-      - name: Install dependencies on Windows
+      - name: Cache vcpkg packages
         if: ${{ startsWith(matrix.runs-on, 'windows') }}
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        id: vcpkg-cache
+        with:
+          path: C:/vcpkg/installed
+          key: vcpkg-x64-windows-sql-catalog-${{ hashFiles('.github/workflows/sql_catalog_test.yml') }}
+      - name: Install dependencies on Windows
+        if: ${{ startsWith(matrix.runs-on, 'windows') && steps.vcpkg-cache.outputs.cache-hit != 'true' }}
         shell: pwsh
         run: |
           vcpkg install zlib:x64-windows nlohmann-json:x64-windows nanoarrow:x64-windows roaring:x64-windows sqlite3:x64-windows
@@ -96,10 +108,14 @@ jobs:
             -DICEBERG_BUILD_REST=OFF \
             -DICEBERG_BUILD_SQL_CATALOG=ON \
             -DICEBERG_SQL_SQLITE=ON \
+            -DCMAKE_C_COMPILER_LAUNCHER=sccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
             ${{ matrix.cmake_extra_args }}
       - name: Build SQL catalog tests
         shell: bash
         run: cmake --build build --target sql_catalog_test
+      - name: Show sccache stats
+        run: sccache --show-stats
       - name: Run SQL catalog tests
         shell: bash
         run: ctest --test-dir build -R '^sql_catalog_test$' --output-on-failure -C ${{ matrix.cmake_build_type }}

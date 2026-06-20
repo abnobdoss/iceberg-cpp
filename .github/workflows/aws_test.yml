@@ -113,11 +113,17 @@ jobs:
         if: ${{ matrix.s3 == 'ON' }}
         shell: bash
         run: bash ci/scripts/start_minio.sh
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696 # v0.0.10
       - name: Build and test Iceberg
         shell: bash
         env:
           CMAKE_TOOLCHAIN_FILE: ${{ startsWith(matrix.runs-on, 'ubuntu') && matrix.bundle_awssdk == 'OFF' && '/usr/local/share/vcpkg/scripts/buildsystems/vcpkg.cmake' || '' }}
-        run: ci/scripts/build_iceberg.sh "$(pwd)" OFF OFF ${{ matrix.s3 }} ${{ matrix.sigv4 }} ${{ matrix.bundle_awssdk }}
+          SCCACHE_GHA_ENABLED: "true"
+          SCCACHE_GHA_RW_MODE: ${{ github.ref == 'refs/heads/main' && 'READ_WRITE' || 'READ_ONLY' }}
+        run: ci/scripts/build_iceberg.sh "$(pwd)" OFF ON ${{ matrix.s3 }} ${{ matrix.sigv4 }} ${{ matrix.bundle_awssdk }}
+      - name: Show sccache stats
+        run: sccache --show-stats
 
   # Exercise the Meson build with SigV4 enabled (resolves aws-cpp-sdk-core via
   # its CMake config, not pkg-config whose Cflags force -std=c++11).
