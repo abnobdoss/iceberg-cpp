@@ -47,14 +47,20 @@ jobs:
       - name: Install dependencies
         shell: bash
         run: sudo apt-get update && sudo apt-get install -y libcurl4-openssl-dev
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696 # v0.0.10
       - name: Configure and Build with ASAN & UBSAN
         env:
           CC: gcc-14
           CXX: g++-14
+          SCCACHE_GHA_ENABLED: "true"
+          SCCACHE_GHA_RW_MODE: ${{ github.ref == 'refs/heads/main' && 'READ_WRITE' || 'READ_ONLY' }}
         run: |
           mkdir build && cd build
-          cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Debug -DICEBERG_ENABLE_ASAN=ON -DICEBERG_ENABLE_UBSAN=ON
+          cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Debug -DICEBERG_ENABLE_ASAN=ON -DICEBERG_ENABLE_UBSAN=ON -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
           cmake --build . --verbose
+      - name: Show sccache stats
+        run: sccache --show-stats
       - name: Run Tests
         working-directory: build
         env:
