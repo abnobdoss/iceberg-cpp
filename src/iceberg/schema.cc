@@ -525,3 +525,5 @@ Result<int32_t> SchemaCache::InitHighestFieldId(const Schema* schema) {
 }
 
 }  // namespace iceberg
+
+// ci: canary build to validate warm sccache restore on all legs
