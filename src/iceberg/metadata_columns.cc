@@ -76,3 +76,5 @@ Result<const SchemaField*> MetadataColumns::MetadataColumn(std::string_view name
 }
 
 }  // namespace iceberg
+
+// ci: warm-cache validation touch
