@@ -76,3 +76,5 @@ Result<const SchemaField*> MetadataColumns::MetadataColumn(std::string_view name
 }
 
 }  // namespace iceberg
+
+// ci: canary build to validate warm sccache restore
