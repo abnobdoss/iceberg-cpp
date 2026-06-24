@@ -104,6 +104,39 @@ jobs:
             sccache-sqlcatalog-${{ matrix.runs-on }}-
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696 # v0.0.10
+      # Provide a prebuilt Arrow/Parquet from conda-forge so the build resolves it
+      # via find_package(Arrow CONFIG) instead of compiling Arrow from source.
+      - name: Set up conda (prebuilt Arrow)
+        uses: conda-incubator/setup-miniconda@8ee1f361103df19b6f8c8655fd3967a8ecb162d5 # v4.0.1
+        with:
+          miniforge-version: latest
+          channels: conda-forge
+          channel-priority: strict
+          activate-environment: arrow
+      - name: Install prebuilt Arrow + Parquet (Unix)
+        if: ${{ !startsWith(matrix.runs-on, 'windows') }}
+        shell: bash -el {0}
+        run: |
+          mamba install -y "libarrow=24.0.*" "libparquet=24.0.*"
+          echo "CMAKE_PREFIX_PATH=${CONDA_PREFIX}" >> "$GITHUB_ENV"
+          if [[ "${RUNNER_OS}" == "macOS" ]]; then
+            echo "DYLD_FALLBACK_LIBRARY_PATH=${DYLD_FALLBACK_LIBRARY_PATH:-}:${CONDA_PREFIX}/lib" >> "$GITHUB_ENV"
+          else
+            echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-}:${CONDA_PREFIX}/lib" >> "$GITHUB_ENV"
+          fi
+      - name: Install prebuilt Arrow + Parquet (Windows)
+        if: ${{ startsWith(matrix.runs-on, 'windows') }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $libDir = Join-Path $env:CONDA "envs\arrow\Library"
+          & "$env:CONDA\condabin\conda.bat" install -n arrow -y -c conda-forge "libarrow=24.0.*" "libparquet=24.0.*"
+          if ($LASTEXITCODE -ne 0) { throw "conda install failed" }
+          if (-not (Test-Path (Join-Path $libDir "lib\cmake\Arrow\ArrowConfig.cmake"))) {
+            throw "prebuilt Arrow cmake config not found under $libDir"
+          }
+          Add-Content -Path $env:GITHUB_ENV  -Value "CMAKE_PREFIX_PATH=$($libDir -replace '\\','/')"
+          Add-Content -Path $env:GITHUB_PATH -Value (Join-Path $libDir "bin")
       - name: Configure Iceberg
         shell: bash
         run: |
