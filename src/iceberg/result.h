@@ -142,3 +142,5 @@ template <AsResult T>
 using ResultValueT = typename std::remove_cvref_t<T>::value_type;
 
 }  // namespace iceberg
+
+// touch: validate linter leg builds against prebuilt Arrow
