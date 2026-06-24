@@ -59,6 +59,23 @@ jobs:
             sccache-sanitizer-ubuntu-
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696 # v0.0.10
+      # Provide a prebuilt Arrow/Parquet from conda-forge so the build resolves it
+      # via find_package(Arrow CONFIG) instead of compiling Arrow from source. Arrow
+      # itself is not sanitizer-instrumented, which is fine: ASAN/UBSAN target
+      # iceberg's own code (container-overflow detection is already disabled).
+      - name: Set up conda (prebuilt Arrow)
+        uses: conda-incubator/setup-miniconda@8ee1f361103df19b6f8c8655fd3967a8ecb162d5 # v4.0.1
+        with:
+          miniforge-version: latest
+          channels: conda-forge
+          channel-priority: strict
+          activate-environment: arrow
+      - name: Install prebuilt Arrow + Parquet
+        shell: bash -el {0}
+        run: |
+          mamba install -y "libarrow=24.0.*" "libparquet=24.0.*"
+          echo "CMAKE_PREFIX_PATH=${CONDA_PREFIX}" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-}:${CONDA_PREFIX}/lib" >> "$GITHUB_ENV"
       - name: Configure and Build with ASAN & UBSAN
         env:
           CC: gcc-14
