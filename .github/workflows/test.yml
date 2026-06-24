@@ -56,6 +56,23 @@ jobs:
       - name: Install dependencies
         shell: bash
         run: sudo apt-get update && sudo apt-get install -y libcurl4-openssl-dev
+      # Provide a prebuilt Arrow/Parquet from conda-forge so the build resolves it
+      # via find_package(Arrow CONFIG) instead of compiling Arrow from source.
+      - name: Set up conda (prebuilt Arrow)
+        uses: conda-incubator/setup-miniconda@8ee1f361103df19b6f8c8655fd3967a8ecb162d5 # v4.0.1
+        with:
+          miniforge-version: latest
+          channels: conda-forge
+          channel-priority: strict
+          activate-environment: arrow
+      - name: Install prebuilt Arrow + Parquet
+        shell: bash -el {0}
+        run: |
+          mamba install -y "libarrow=24.0.*" "libparquet=24.0.*"
+          echo "CMAKE_PREFIX_PATH=${CONDA_PREFIX}" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-}:${CONDA_PREFIX}/lib" >> "$GITHUB_ENV"
+          # Test binaries are throwaway, so drop debug info to shrink objects + sccache.
+          echo "ICEBERG_EXTRA_CMAKE_ARGS=-DCMAKE_CXX_FLAGS_DEBUG=-g0 -DCMAKE_C_FLAGS_DEBUG=-g0" >> "$GITHUB_ENV"
       - name: Restore sccache cache
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
@@ -101,6 +118,23 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
+      # Provide a prebuilt Arrow/Parquet from conda-forge so the build resolves it
+      # via find_package(Arrow CONFIG) instead of compiling Arrow from source.
+      - name: Set up conda (prebuilt Arrow)
+        uses: conda-incubator/setup-miniconda@8ee1f361103df19b6f8c8655fd3967a8ecb162d5 # v4.0.1
+        with:
+          miniforge-version: latest
+          channels: conda-forge
+          channel-priority: strict
+          activate-environment: arrow
+      - name: Install prebuilt Arrow + Parquet
+        shell: bash -el {0}
+        run: |
+          mamba install -y "libarrow=24.0.*" "libparquet=24.0.*"
+          echo "CMAKE_PREFIX_PATH=${CONDA_PREFIX}" >> "$GITHUB_ENV"
+          echo "DYLD_FALLBACK_LIBRARY_PATH=${DYLD_FALLBACK_LIBRARY_PATH:-}:${CONDA_PREFIX}/lib" >> "$GITHUB_ENV"
+          # Test binaries are throwaway, so drop debug info to shrink objects + sccache.
+          echo "ICEBERG_EXTRA_CMAKE_ARGS=-DCMAKE_CXX_FLAGS_DEBUG=-g0 -DCMAKE_C_FLAGS_DEBUG=-g0" >> "$GITHUB_ENV"
       - name: Restore sccache cache
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
@@ -144,6 +178,33 @@ jobs:
         uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
         with:
           arch: x64
+      # Provide a prebuilt Arrow/Parquet from conda-forge so the build resolves it
+      # via find_package(Arrow CONFIG) instead of compiling Arrow from source.
+      - name: Set up conda (prebuilt Arrow)
+        uses: conda-incubator/setup-miniconda@8ee1f361103df19b6f8c8655fd3967a8ecb162d5 # v4.0.1
+        with:
+          miniforge-version: latest
+          channels: conda-forge
+          channel-priority: strict
+          activate-environment: arrow
+      # Run in pwsh: setup-miniconda's env activation is unreliable in bash on the
+      # Windows runner. Expose the conda prefix through CMAKE_PREFIX_PATH so the
+      # standard find_package(Arrow CONFIG) resolves it; fail fast (with a listing)
+      # if the config is missing rather than silently building vendored Arrow.
+      - name: Install prebuilt Arrow + Parquet
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $libDir = Join-Path $env:CONDA "envs\arrow\Library"
+          & "$env:CONDA\condabin\conda.bat" install -n arrow -y -c conda-forge "libarrow=24.0.*" "libparquet=24.0.*"
+          if ($LASTEXITCODE -ne 0) { throw "conda install failed" }
+          if (-not (Test-Path (Join-Path $libDir "lib\cmake\Arrow\ArrowConfig.cmake"))) {
+            Write-Host "Arrow cmake config NOT FOUND under $libDir. *Config.cmake present:"
+            Get-ChildItem -Path $libDir -Recurse -Filter *Config.cmake -ErrorAction SilentlyContinue | Select-Object -First 60 | ForEach-Object { $_.FullName }
+            throw "prebuilt Arrow cmake config not found"
+          }
+          Add-Content -Path $env:GITHUB_ENV  -Value "CMAKE_PREFIX_PATH=$($libDir -replace '\\','/')"
+          Add-Content -Path $env:GITHUB_PATH -Value (Join-Path $libDir "bin")
       - name: Cache vcpkg packages
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         id: vcpkg-cache
