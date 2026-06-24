@@ -71,6 +71,8 @@ jobs:
           mamba install -y "libarrow=24.0.*" "libparquet=24.0.*"
           echo "CMAKE_PREFIX_PATH=${CONDA_PREFIX}" >> "$GITHUB_ENV"
           echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-}:${CONDA_PREFIX}/lib" >> "$GITHUB_ENV"
+          # Test binaries are throwaway, so drop debug info to shrink objects + sccache.
+          echo "ICEBERG_EXTRA_CMAKE_ARGS=-DCMAKE_CXX_FLAGS_DEBUG=-g0 -DCMAKE_C_FLAGS_DEBUG=-g0" >> "$GITHUB_ENV"
       - name: Restore sccache cache
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
@@ -131,6 +133,8 @@ jobs:
           mamba install -y "libarrow=24.0.*" "libparquet=24.0.*"
           echo "CMAKE_PREFIX_PATH=${CONDA_PREFIX}" >> "$GITHUB_ENV"
           echo "DYLD_FALLBACK_LIBRARY_PATH=${DYLD_FALLBACK_LIBRARY_PATH:-}:${CONDA_PREFIX}/lib" >> "$GITHUB_ENV"
+          # Test binaries are throwaway, so drop debug info to shrink objects + sccache.
+          echo "ICEBERG_EXTRA_CMAKE_ARGS=-DCMAKE_CXX_FLAGS_DEBUG=-g0 -DCMAKE_C_FLAGS_DEBUG=-g0" >> "$GITHUB_ENV"
       - name: Restore sccache cache
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
