@@ -144,6 +144,19 @@ jobs:
         uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
         with:
           arch: x64
+      # sccache keys MSVC compiles on the cl.exe bytes (MSVC exposes no version to
+      # sccache), so a runner-image bump that patches cl.exe in place invalidates
+      # every entry. Fold the exact cl.exe version into the cache key so each build
+      # gets its own lineage and cross-run hits survive image churn.
+      - name: Resolve MSVC version for sccache key
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $false
+          $banner = (cl.exe 2>&1 | Out-String)
+          if ($banner -notmatch 'Version ([\d.]+)') { throw "could not parse cl.exe version from: $banner" }
+          $msvc = $Matches[1]
+          Add-Content -Path $env:GITHUB_ENV -Value "MSVC_VER=$msvc"
+          Write-Host "Resolved MSVC_VER=$msvc"
       - name: Cache vcpkg packages
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         id: vcpkg-cache
@@ -159,9 +172,9 @@ jobs:
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ${{ github.workspace }}/.sccache
-          key: sccache-test-windows-${{ github.run_id }}
+          key: sccache-test-windows-${{ env.MSVC_VER }}-${{ github.run_id }}
           restore-keys: |
-            sccache-test-windows-
+            sccache-test-windows-${{ env.MSVC_VER }}-
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696 # v0.0.10
       - name: Build Iceberg
@@ -176,7 +189,7 @@ jobs:
         uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ${{ github.workspace }}/.sccache
-          key: sccache-test-windows-${{ github.run_id }}
+          key: sccache-test-windows-${{ env.MSVC_VER }}-${{ github.run_id }}
       - name: Build Example
         shell: pwsh
         run: |

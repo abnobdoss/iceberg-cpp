@@ -74,6 +74,18 @@ jobs:
         uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
         with:
           arch: x64
+      # sccache keys MSVC compiles on the cl.exe bytes, which a runner-image bump can
+      # patch in place; fold the exact cl.exe version into the cache key so cross-run
+      # hits survive image churn. Empty suffix on non-Windows leaves their keys intact.
+      - name: Resolve MSVC version for sccache key
+        if: ${{ startsWith(matrix.runs-on, 'windows') }}
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $false
+          $banner = (cl.exe 2>&1 | Out-String)
+          if ($banner -notmatch 'Version ([\d.]+)') { throw "could not parse cl.exe version from: $banner" }
+          Add-Content -Path $env:GITHUB_ENV -Value "SCCACHE_KEY_SUFFIX=-$($Matches[1])"
+          Write-Host "SCCACHE_KEY_SUFFIX=-$($Matches[1])"
       - name: Install dependencies on Ubuntu
         if: ${{ startsWith(matrix.runs-on, 'ubuntu') }}
         shell: bash
@@ -99,9 +111,9 @@ jobs:
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ${{ github.workspace }}/.sccache
-          key: sccache-sqlcatalog-${{ matrix.runs-on }}-${{ github.run_id }}
+          key: sccache-sqlcatalog-${{ matrix.runs-on }}${{ env.SCCACHE_KEY_SUFFIX }}-${{ github.run_id }}
           restore-keys: |
-            sccache-sqlcatalog-${{ matrix.runs-on }}-
+            sccache-sqlcatalog-${{ matrix.runs-on }}${{ env.SCCACHE_KEY_SUFFIX }}-
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696 # v0.0.10
       - name: Configure Iceberg
@@ -129,7 +141,7 @@ jobs:
         uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ${{ github.workspace }}/.sccache
-          key: sccache-sqlcatalog-${{ matrix.runs-on }}-${{ github.run_id }}
+          key: sccache-sqlcatalog-${{ matrix.runs-on }}${{ env.SCCACHE_KEY_SUFFIX }}-${{ github.run_id }}
       - name: Run SQL catalog tests
         shell: bash
         run: ctest --test-dir build -R '^sql_catalog_test$' --output-on-failure -C ${{ matrix.cmake_build_type }}
