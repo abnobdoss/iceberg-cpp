@@ -119,6 +119,7 @@ jobs:
       # so the build resolves it via find_package(Arrow CONFIG) instead of compiling
       # Arrow from source.
       - name: Set up conda (prebuilt Arrow)
+        if: ${{ !(matrix.bundle_awssdk == 'ON' && startsWith(matrix.runs-on, 'ubuntu')) }}
         uses: conda-incubator/setup-miniconda@8ee1f361103df19b6f8c8655fd3967a8ecb162d5 # v4.0.1
         with:
           miniforge-version: latest
@@ -126,6 +127,7 @@ jobs:
           channel-priority: strict
           activate-environment: arrow
       - name: Install prebuilt Arrow + Parquet
+        if: ${{ !(matrix.bundle_awssdk == 'ON' && startsWith(matrix.runs-on, 'ubuntu')) }}
         shell: bash -el {0}
         run: |
           mamba install -y "libarrow=24.0.*" "libparquet=24.0.*"
