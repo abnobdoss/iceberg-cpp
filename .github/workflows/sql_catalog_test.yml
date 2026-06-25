@@ -101,7 +101,7 @@ jobs:
         id: vcpkg-cache
         with:
           path: C:/vcpkg/installed
-          key: vcpkg-x64-windows-sql-catalog-${{ hashFiles('.github/workflows/sql_catalog_test.yml') }}
+          key: vcpkg-x64-windows-sql-catalog-zlib-nlohmann-nanoarrow-roaring-sqlite3
       - name: Install dependencies on Windows
         if: ${{ startsWith(matrix.runs-on, 'windows') && steps.vcpkg-cache.outputs.cache-hit != 'true' }}
         shell: pwsh
