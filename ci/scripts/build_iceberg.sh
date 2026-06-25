@@ -99,5 +99,6 @@ fi
 
 popd
 
-# clean up between builds
-rm -rf ${build_dir}
+# clean up between builds (best-effort: on Windows a just-built exe/dll may still
+# be held by a virus scanner, so retry then ignore -- the dir is ephemeral on CI)
+for _ in 1 2 3; do rm -rf "${build_dir}" 2>/dev/null && break || sleep 2; done
