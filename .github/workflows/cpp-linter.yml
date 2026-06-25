@@ -35,6 +35,9 @@ jobs:
   cpp-linter:
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-26.04
+    env:
+      SCCACHE_DIR: ${{ github.workspace }}/.sccache
+      SCCACHE_CACHE_SIZE: "2G"
     permissions:
       contents: read
       pull-requests: write
@@ -48,6 +51,15 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libcurl4-openssl-dev libsqlite3-dev libpq-dev default-libmysqlclient-dev
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696 # v0.0.10
+      - name: sccache cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ github.workspace }}/.sccache
+          key: sccache-linter-ubuntu-${{ github.run_id }}
+          restore-keys: |
+            sccache-linter-ubuntu-
       - name: Run build
         env:
           CC: gcc-14
@@ -58,8 +70,11 @@ jobs:
             -DICEBERG_BUILD_SQL_CATALOG=ON \
             -DICEBERG_SQL_SQLITE=ON \
             -DICEBERG_SQL_POSTGRESQL=ON \
-            -DICEBERG_SQL_MYSQL=ON
+            -DICEBERG_SQL_MYSQL=ON \
+            -DCMAKE_C_COMPILER_LAUNCHER=sccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
           cmake --build .
+          sccache --show-stats
       - uses: cpp-linter/cpp-linter-action@0f6d1b8d7e38b584cbee606eb23d850c217d54f8 # v2.15.1
         id: linter
         continue-on-error: true
