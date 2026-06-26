@@ -30,7 +30,7 @@ build_enable_sigv4=${5:-OFF}
 build_bundle_awssdk=${6:-ON}
 run_tests=${ICEBERG_RUN_TESTS:-ON}
 
-mkdir ${build_dir}
+mkdir -p "${build_dir}"
 pushd ${build_dir}
 
 is_windows() {

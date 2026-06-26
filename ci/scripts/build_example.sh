@@ -24,7 +24,7 @@ build_dir=${1}/build
 run_example=${ICEBERG_RUN_EXAMPLE:-OFF}
 
 rm -rf "${build_dir}"
-mkdir "${build_dir}"
+mkdir -p "${build_dir}"
 pushd ${build_dir}
 
 is_windows() {
