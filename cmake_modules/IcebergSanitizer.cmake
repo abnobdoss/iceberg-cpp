@@ -17,6 +17,13 @@
 
 add_library(iceberg_sanitizer_flags INTERFACE)
 
+# ASAN and TSan instrument memory access in incompatible ways and cannot coexist
+# in one binary; the runtimes also refuse to load together. Force separate builds.
+if(ICEBERG_ENABLE_TSAN AND ICEBERG_ENABLE_ASAN)
+  message(FATAL_ERROR "ICEBERG_ENABLE_TSAN and ICEBERG_ENABLE_ASAN are mutually exclusive; enable only one"
+  )
+endif()
+
 if(ICEBERG_ENABLE_ASAN)
   if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(iceberg_sanitizer_flags INTERFACE -fsanitize=address
@@ -37,5 +44,16 @@ if(ICEBERG_ENABLE_UBSAN)
   else()
     message(WARNING "Undefined Behavior Sanitizer is only supported for GCC and Clang compilers"
     )
+  endif()
+endif()
+
+if(ICEBERG_ENABLE_TSAN)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(iceberg_sanitizer_flags INTERFACE -fsanitize=thread
+                                                             -fno-omit-frame-pointer)
+    target_link_options(iceberg_sanitizer_flags INTERFACE -fsanitize=thread)
+    message(STATUS "Thread Sanitizer enabled")
+  else()
+    message(WARNING "Thread Sanitizer is only supported for GCC and Clang compilers")
   endif()
 endif()

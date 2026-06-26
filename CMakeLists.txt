@@ -58,6 +58,7 @@ option(ICEBERG_BUNDLE_AWSSDK "Bundle AWS SDK for S3/SigV4 support" ON)
 option(ICEBERG_BUNDLE_THRIFT "Bundle Thrift (from Arrow) for Hive catalog" ON)
 option(ICEBERG_ENABLE_ASAN "Enable Address Sanitizer" OFF)
 option(ICEBERG_ENABLE_UBSAN "Enable Undefined Behavior Sanitizer" OFF)
+option(ICEBERG_ENABLE_TSAN "Enable Thread Sanitizer" OFF)
 
 include(GNUInstallDirs)
 include(FetchContent)
