@@ -38,12 +38,22 @@ permissions:
 jobs:
   analyze:
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
-    name: Analyze Actions
+    name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-slim
     permissions:
       contents: read
       security-events: write
       packages: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: actions
+          - language: c-cpp
+            # build-mode: none analyzes C/C++ without compiling, so this leg
+            # needs no Arrow/vcpkg/conda/compiler setup.
+            build-mode: none
 
     steps:
     - name: Checkout repository
@@ -54,9 +64,10 @@ jobs:
     - name: Initialize CodeQL
       uses: github/codeql-action/init@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
       with:
-        languages: actions
+        languages: ${{ matrix.language }}
+        build-mode: ${{ matrix.build-mode }}
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
       with:
-        category: "/language:actions"
+        category: "/language:${{ matrix.language }}"
