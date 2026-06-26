@@ -37,6 +37,7 @@ jobs:
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     name: Run zizmor 🌈
     runs-on: ubuntu-26.04
+    timeout-minutes: 15
     permissions: {}
     steps:
       - name: Checkout repository
