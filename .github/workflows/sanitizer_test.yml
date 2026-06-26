@@ -95,3 +95,69 @@ jobs:
             ubsan.log*
             build/Testing/Temporary/LastTest.log
             build/Testing/Temporary/LastTestsFailed.log
+
+  # TSan is a separate job: it cannot share a build or process with ASAN, whose
+  # runtime is mutually exclusive with the thread sanitizer runtime.
+  thread-sanitizer-test:
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    name: "TSAN Tests"
+    # Advisory until proven green: tests link uninstrumented vendored Arrow, which can surface false races.
+    continue-on-error: true
+    runs-on: ubuntu-26.04
+    env:
+      SCCACHE_DIR: ${{ github.workspace }}/.sccache
+      SCCACHE_CACHE_SIZE: "2G"
+    steps:
+      - name: Checkout iceberg-cpp
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - name: Install dependencies
+        shell: bash
+        run: sudo apt-get update && sudo apt-get install -y libcurl4-openssl-dev
+      - name: Relax ASLR entropy for TSan
+        # TSan's shadow mapping aborts under the runner's default mmap_rnd_bits; 28 is the max it supports.
+        shell: bash
+        run: sudo sysctl -w vm.mmap_rnd_bits=28
+      - name: Restore sccache cache
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ github.workspace }}/.sccache
+          key: sccache-sanitizer-tsan-ubuntu-${{ github.run_id }}
+          restore-keys: |
+            sccache-sanitizer-tsan-ubuntu-
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696 # v0.0.10
+      - name: Configure and Build with TSAN
+        env:
+          CC: gcc-14
+          CXX: g++-14
+        run: |
+          mkdir build && cd build
+          cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Debug -DICEBERG_ENABLE_TSAN=ON \
+            -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
+          cmake --build . --verbose
+      - name: Show sccache stats
+        shell: bash
+        run: sccache --show-stats
+      - name: Save sccache cache
+        if: github.ref == 'refs/heads/main'
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ github.workspace }}/.sccache
+          key: sccache-sanitizer-tsan-ubuntu-${{ github.run_id }}
+      - name: Run Tests
+        working-directory: build
+        env:
+          TSAN_OPTIONS: log_path=${{ github.workspace }}/tsan.log:halt_on_error=1:second_deadlock_stack=1:suppressions=${{ github.workspace }}/.github/tsan-suppressions.txt
+        run: |
+          ctest --output-on-failure
+      - name: Save the test output
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: tsan-test-output
+          path: |
+            tsan.log*
+            build/Testing/Temporary/LastTest.log
+            build/Testing/Temporary/LastTestsFailed.log
