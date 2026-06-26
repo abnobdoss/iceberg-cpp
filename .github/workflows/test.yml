@@ -24,8 +24,14 @@ on:
       - '!dependabot/**'
     tags:
       - '**'
+    paths-ignore:
+      - '**/*.md'
+      - 'mkdocs/**'
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore:
+      - '**/*.md'
+      - 'mkdocs/**'
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
