@@ -40,7 +40,7 @@ is_windows() {
 CMAKE_ARGS=(
     "-G Ninja"
     "-DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX:-${ICEBERG_HOME}}"
-    "-DICEBERG_BUILD_STATIC=ON"
+    "-DICEBERG_BUILD_STATIC=OFF"
     "-DICEBERG_BUILD_SHARED=ON"
     "-DICEBERG_BUILD_REST_INTEGRATION_TESTS=${build_rest_integration_test}"
 )
@@ -65,14 +65,14 @@ fi
 
 if is_windows; then
     CMAKE_ARGS+=("-DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake")
-    CMAKE_ARGS+=("-DCMAKE_BUILD_TYPE=Release")
-else
-    # Pass an externally provided toolchain (e.g. vcpkg for the SigV4 job)
-    if [[ -n "${CMAKE_TOOLCHAIN_FILE:-}" ]]; then
-        CMAKE_ARGS+=("-DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}")
-    fi
-    CMAKE_ARGS+=("-DCMAKE_BUILD_TYPE=Debug")
 fi
+
+# Pass an externally provided toolchain (e.g. vcpkg for the SigV4 job)
+if [[ -n "${CMAKE_TOOLCHAIN_FILE:-}" ]]; then
+    CMAKE_ARGS+=("-DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}")
+fi
+
+CMAKE_ARGS+=("-DCMAKE_BUILD_TYPE=${ICEBERG_BUILD_TYPE:-Debug}")
 
 if [[ "${build_enable_sccache}" == "ON" ]]; then
     CMAKE_ARGS+=("-DCMAKE_CXX_COMPILER_LAUNCHER=sccache")
@@ -85,10 +85,12 @@ if [[ -n "${ICEBERG_EXTRA_CMAKE_ARGS:-}" ]]; then
 fi
 
 cmake "${CMAKE_ARGS[@]}" ${source_dir}
+
+build_type="${ICEBERG_BUILD_TYPE:-Debug}"
 if is_windows; then
-  cmake --build . --config Release --target install
+  cmake --build . --config "${build_type}" --target install
   if [[ "${run_tests}" == "ON" ]]; then
-    ctest --output-on-failure -C Release
+    ctest --output-on-failure -C "${build_type}"
   fi
 else
   cmake --build . --target install
