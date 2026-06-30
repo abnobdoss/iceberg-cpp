@@ -350,7 +350,7 @@ class ScanTestBase : public testing::TestWithParam<int8_t> {
  private:
   int manifest_counter_ = 0;
   int manifest_list_counter_ = 0;
-  constexpr static PartitionValues kEmptyPartition{};
+  inline static const PartitionValues kEmptyPartition{};
 };
 
 }  // namespace iceberg

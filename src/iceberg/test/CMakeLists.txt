@@ -264,7 +264,7 @@ if(ICEBERG_BUILD_SQL_CATALOG
   target_include_directories(sql_catalog_test PRIVATE "${CMAKE_BINARY_DIR}/iceberg/test/")
   target_sources(sql_catalog_test PRIVATE sql_catalog_test.cc)
   target_link_libraries(sql_catalog_test
-                        PRIVATE iceberg_sql_catalog_static
+                        PRIVATE "$<IF:$<TARGET_EXISTS:iceberg_sql_catalog_static>,iceberg_sql_catalog_static,iceberg_sql_catalog_shared>"
                                 "$<IF:$<TARGET_EXISTS:iceberg_bundle_static>,iceberg_bundle_static,iceberg_bundle_shared>"
                                 GTest::gmock_main)
   if(MSVC_TOOLCHAIN)
@@ -287,7 +287,8 @@ if(ICEBERG_BUILD_REST)
     add_executable(${test_name})
     target_include_directories(${test_name} PRIVATE "${CMAKE_BINARY_DIR}/iceberg/test/")
     target_sources(${test_name} PRIVATE ${ARG_SOURCES})
-    target_link_libraries(${test_name} PRIVATE GTest::gmock_main iceberg_rest_static)
+    target_link_libraries(${test_name} PRIVATE GTest::gmock_main
+                          "$<IF:$<TARGET_EXISTS:iceberg_rest_static>,iceberg_rest_static,iceberg_rest_shared>")
     if(MSVC_TOOLCHAIN)
       target_compile_options(${test_name} PRIVATE /bigobj)
     endif()
