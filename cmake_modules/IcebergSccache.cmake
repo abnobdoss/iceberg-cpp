@@ -16,21 +16,18 @@
 # under the License.
 
 if(MSVC_TOOLCHAIN)
-  message(STATUS "Using /Z7 debug info for MSVC (avoids PDB lock contention with Ninja)")
+  message(STATUS "Embedding debug info (/Z7) on MSVC to avoid PDB lock contention with Ninja")
 
-  # Remove /Zi or /ZI
-  string(REGEX REPLACE "/Z[iI]" "" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
-  string(REGEX REPLACE "/Z[iI]" "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+  # CMake 3.25+ policy: force /Z7 (Embedded) for ALL targets including FetchContent deps.
+  # Without this, vendored Boost uses /Zi which races on the shared .pdb under Ninja.
+  cmake_policy(SET CMP0141 NEW)
+  set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT Embedded)
 
-  string(REGEX REPLACE "/Z[iI]" "" CMAKE_C_FLAGS_RELWITHDEBINFO
+  # Belt-and-suspenders: also patch the default flag strings for older CMake code paths.
+  string(REGEX REPLACE "/Z[iI]" "/Z7" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
+  string(REGEX REPLACE "/Z[iI]" "/Z7" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+  string(REGEX REPLACE "/Z[iI]" "/Z7" CMAKE_C_FLAGS_RELWITHDEBINFO
                        "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
-  string(REGEX REPLACE "/Z[iI]" "" CMAKE_CXX_FLAGS_RELWITHDEBINFO
+  string(REGEX REPLACE "/Z[iI]" "/Z7" CMAKE_CXX_FLAGS_RELWITHDEBINFO
                        "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
-
-  # Add /Z7
-  set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /Z7")
-  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Z7")
-
-  set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} /Z7")
-  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /Z7")
 endif()
