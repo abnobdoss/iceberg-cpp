@@ -15,8 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-if(MSVC_TOOLCHAIN AND "${CMAKE_CXX_COMPILER_LAUNCHER}" STREQUAL "sccache")
-  message(STATUS "Configuring sccache for MSVC")
+if(MSVC_TOOLCHAIN)
+  message(STATUS "Using /Z7 debug info for MSVC (avoids PDB lock contention with Ninja)")
 
   # Remove /Zi or /ZI
   string(REGEX REPLACE "/Z[iI]" "" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
