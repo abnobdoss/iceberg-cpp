@@ -202,3 +202,5 @@ If you make improvements that could benefit all developers, please update the te
 ## License
 
 Licensed under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0)
+
+<!-- fork-only cpp-linter validation trigger -->
