@@ -115,6 +115,11 @@ jobs:
         shell: pwsh
         run: |
           vcpkg install zlib:x64-windows nlohmann-json:x64-windows nanoarrow:x64-windows roaring:x64-windows sqlite3:x64-windows
+      - name: Set up conda Arrow
+        if: ${{ !startsWith(matrix.runs-on, 'windows') }}
+        uses: ./.github/actions/setup-conda-arrow
+        with:
+          runtime-library-path: ${{ startsWith(matrix.runs-on, 'macos') && 'DYLD_FALLBACK_LIBRARY_PATH' || 'LD_LIBRARY_PATH' }}
       - name: Restore sccache cache
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
@@ -138,6 +143,10 @@ jobs:
             -DCMAKE_C_COMPILER_LAUNCHER=sccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
             ${{ matrix.cmake_extra_args }}
+          if [[ "${RUNNER_OS}" != "Windows" && -d build/_deps/vendoredarrow-src ]]; then
+            echo "::error::Expected Arrow from CMAKE_PREFIX_PATH, but CMake configured vendored Arrow"
+            exit 1
+          fi
       - name: Build SQL catalog tests
         shell: bash
         run: cmake --build build --target sql_catalog_test
