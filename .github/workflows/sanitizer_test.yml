@@ -49,6 +49,8 @@ jobs:
       - name: Install dependencies
         shell: bash
         run: sudo apt-get update && sudo apt-get install -y libcurl4-openssl-dev
+      - name: Set up conda Arrow
+        uses: ./.github/actions/setup-conda-arrow
       - name: Restore sccache cache
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
@@ -66,6 +68,10 @@ jobs:
           mkdir build && cd build
           cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Debug -DICEBERG_ENABLE_ASAN=ON -DICEBERG_ENABLE_UBSAN=ON \
             -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
+          if [[ -d _deps/vendoredarrow-src ]]; then
+            echo "::error::Expected Arrow from CMAKE_PREFIX_PATH, but CMake configured vendored Arrow"
+            exit 1
+          fi
           cmake --build . --verbose
       - name: Show sccache stats
         shell: bash

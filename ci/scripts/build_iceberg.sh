@@ -85,6 +85,11 @@ if [[ -n "${ICEBERG_EXTRA_CMAKE_ARGS:-}" ]]; then
 fi
 
 cmake "${CMAKE_ARGS[@]}" ${source_dir}
+if [[ "${ICEBERG_REQUIRE_SYSTEM_ARROW:-OFF}" == "ON" && -d _deps/vendoredarrow-src ]]; then
+    echo "::error::Expected Arrow from CMAKE_PREFIX_PATH, but CMake configured vendored Arrow"
+    exit 1
+fi
+
 if is_windows; then
   cmake --build . --config Release --target install
   if [[ "${run_tests}" == "ON" ]]; then
