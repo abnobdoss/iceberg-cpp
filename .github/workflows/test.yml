@@ -47,6 +47,7 @@ jobs:
     env:
       SCCACHE_DIR: ${{ github.workspace }}/.sccache
       SCCACHE_CACHE_SIZE: "2G"
+      ICEBERG_EXTRA_CMAKE_ARGS: -DICEBERG_BUILD_STATIC=OFF -DICEBERG_BUILD_SHARED=ON
     steps:
       - name: Checkout iceberg-cpp
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -95,6 +96,7 @@ jobs:
     env:
       SCCACHE_DIR: ${{ github.workspace }}/.sccache
       SCCACHE_CACHE_SIZE: "2G"
+      ICEBERG_EXTRA_CMAKE_ARGS: -DICEBERG_BUILD_STATIC=OFF -DICEBERG_BUILD_SHARED=ON
     steps:
       - name: Checkout iceberg-cpp
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -134,6 +136,7 @@ jobs:
     env:
       SCCACHE_DIR: ${{ github.workspace }}/.sccache
       SCCACHE_CACHE_SIZE: "2G"
+      ICEBERG_EXTRA_CMAKE_ARGS: -DICEBERG_BUILD_STATIC=OFF -DICEBERG_BUILD_SHARED=ON
     steps:
       - name: Checkout iceberg-cpp
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
