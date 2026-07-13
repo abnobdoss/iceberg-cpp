@@ -17,31 +17,30 @@
  * under the License.
  */
 
-#pragma once
-
-/// \file iceberg/inspect/history_table.h
-/// \brief Define the history metadata table.
-
-#include <memory>
-
-#include "iceberg/iceberg_export.h"
-#include "iceberg/inspect/metadata_table.h"
-#include "iceberg/result.h"
-#include "iceberg/type_fwd.h"
+#include <benchmark/benchmark.h>
 
 namespace iceberg {
+namespace {
 
-/// \brief History metadata table.
-class ICEBERG_EXPORT HistoryTable : public MetadataTable {
- public:
-  static Result<std::unique_ptr<HistoryTable>> Make(std::shared_ptr<Table> table);
+void BM_BenchmarkSmoke(benchmark::State& state) {
+  while (state.KeepRunning()) {
+    benchmark::DoNotOptimize(state.iterations());
+  }
 
-  ~HistoryTable() override;
+  state.SetItemsProcessed(state.iterations());
+}
 
-  Kind kind() const noexcept override { return Kind::kHistory; }
+BENCHMARK(BM_BenchmarkSmoke);
 
- private:
-  explicit HistoryTable(std::shared_ptr<Table> table);
-};
-
+}  // namespace
 }  // namespace iceberg
+
+int main(int argc, char** argv) {
+  benchmark::Initialize(&argc, argv);
+  if (benchmark::ReportUnrecognizedArguments(argc, argv)) {
+    return 1;
+  }
+  benchmark::RunSpecifiedBenchmarks();
+  benchmark::Shutdown();
+  return 0;
+}

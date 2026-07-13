@@ -15,30 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-name: pre-commit
+benchmark_dep = dependency('benchmark', required: true)
 
-on:
-  push:
-    branches:
-      - '**'
-      - '!dependabot/**'
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+benchmark_smoke = executable(
+    'benchmark_smoke',
+    sources: files('benchmark_smoke.cc'),
+    dependencies: [iceberg_dep, benchmark_dep],
+)
 
-concurrency:
-  group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
-  cancel-in-progress: true
-
-permissions:
-  contents: write
-
-jobs:
-  pre-commit:
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
-    runs-on: ubuntu-slim
-    steps:
-    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      with:
-        persist-credentials: false
-    - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
-    - uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd  # v3.0.1
+benchmark('benchmark_smoke', benchmark_smoke)
