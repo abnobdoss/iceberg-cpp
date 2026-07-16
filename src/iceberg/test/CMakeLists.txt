@@ -15,8 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set(CMAKE_COMPILE_WARNING_AS_ERROR FALSE)
-
 set(INSTALL_GTEST
     OFF
     CACHE BOOL "" FORCE)
@@ -256,6 +254,7 @@ if(ICEBERG_BUILD_BUNDLE)
                    data_writer_test.cc
                    delete_filter_test.cc
                    delete_loader_test.cc
+                   deletion_vector_writer_test.cc
                    file_scan_task_reader_test.cc
                    literal_util_test.cc)
 
