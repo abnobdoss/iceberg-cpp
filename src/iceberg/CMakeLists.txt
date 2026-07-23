@@ -193,6 +193,18 @@ add_iceberg_lib(iceberg
                 OUTPUTS
                 ICEBERG_LIBRARIES)
 
+# The logging macros in the installed public header log_macros.h use __VA_OPT__,
+# which MSVC's traditional preprocessor rejects. Require the conforming
+# preprocessor PUBLICly so downstream consumers that include log_macros.h get it
+# on MSVC (and any library TU that includes it does too).
+if(MSVC_TOOLCHAIN)
+  foreach(_iceberg_lib iceberg_shared iceberg_static)
+    if(TARGET ${_iceberg_lib})
+      target_compile_options(${_iceberg_lib} PUBLIC /Zc:preprocessor)
+    endif()
+  endforeach()
+endif()
+
 set(ICEBERG_DATA_SOURCES
     data/data_writer.cc
     data/delete_filter.cc
