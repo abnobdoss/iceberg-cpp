@@ -60,6 +60,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libcurl4-openssl-dev libsqlite3-dev libpq-dev default-libmysqlclient-dev
+      - name: Set up conda Arrow
+        uses: ./.github/actions/setup-conda-arrow
       - name: Set up sccache
         uses: ./.github/actions/setup-sccache
         with:
@@ -79,6 +81,10 @@ jobs:
             -DICEBERG_SQL_POSTGRESQL=ON \
             -DICEBERG_SQL_MYSQL=ON \
             -DICEBERG_BUILD_HIVE=ON
+          if [[ -d _deps/vendoredarrow-src ]]; then
+            echo "::error::Expected Arrow from CMAKE_PREFIX_PATH, but CMake configured vendored Arrow"
+            exit 1
+          fi
           cmake --build .
       - name: Save sccache
         if: always()
