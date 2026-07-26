@@ -117,6 +117,11 @@ jobs:
         if: ${{ matrix.s3 == 'ON' }}
         shell: bash
         run: bash ci/scripts/start_minio.sh
+      - name: Set up conda Arrow
+        if: ${{ matrix.bundle_awssdk == 'OFF' }}
+        uses: ./.github/actions/setup-conda-arrow
+        with:
+          runtime-library-path: ${{ startsWith(matrix.runs-on, 'macos') && 'DYLD_FALLBACK_LIBRARY_PATH' || 'LD_LIBRARY_PATH' }}
       - name: Set up sccache
         uses: ./.github/actions/setup-sccache
         with:
