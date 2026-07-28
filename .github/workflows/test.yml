@@ -143,8 +143,6 @@ jobs:
           persist-credentials: false
       - name: Set up conda Arrow
         uses: ./.github/actions/setup-conda-arrow
-        with:
-          runtime-library-path: DYLD_FALLBACK_LIBRARY_PATH
       - name: Set up sccache
         uses: ./.github/actions/setup-sccache
         with:
