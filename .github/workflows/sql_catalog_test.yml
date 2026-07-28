@@ -99,8 +99,6 @@ jobs:
       - name: Set up conda Arrow
         if: ${{ !startsWith(matrix.runs-on, 'windows') }}
         uses: ./.github/actions/setup-conda-arrow
-        with:
-          runtime-library-path: ${{ startsWith(matrix.runs-on, 'macos') && 'DYLD_FALLBACK_LIBRARY_PATH' || 'LD_LIBRARY_PATH' }}
       - name: Set up sccache
         uses: ./.github/actions/setup-sccache
         with:

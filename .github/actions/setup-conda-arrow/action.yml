@@ -19,10 +19,6 @@ name: Set up conda Arrow
 description: Install Arrow and Parquet from conda-forge for CMake builds.
 
 inputs:
-  runtime-library-path:
-    description: Runtime library path variable to export.
-    required: false
-    default: LD_LIBRARY_PATH
   extra-packages:
     description: Extra conda packages to install, space separated.
     required: false
@@ -41,20 +37,5 @@ runs:
     - name: Install Arrow and Parquet
       shell: bash -el {0}
       env:
-        RUNTIME_LIBRARY_PATH: ${{ inputs.runtime-library-path }}
         EXTRA_PACKAGES: ${{ inputs.extra-packages }}
-      run: |
-        read -r -a extra_packages <<< "${EXTRA_PACKAGES}"
-        mamba install -y "libarrow=24.0.*" "libparquet=24.0.*" "${extra_packages[@]}"
-        echo "CMAKE_PREFIX_PATH=${CONDA_PREFIX}" >> "$GITHUB_ENV"
-        echo "ICEBERG_REQUIRE_SYSTEM_ARROW=ON" >> "$GITHUB_ENV"
-
-        case "${RUNTIME_LIBRARY_PATH}" in
-          LD_LIBRARY_PATH|DYLD_FALLBACK_LIBRARY_PATH) ;;
-          *)
-            echo "::error::Unsupported runtime-library-path: ${RUNTIME_LIBRARY_PATH}"
-            exit 1
-            ;;
-        esac
-        runtime_path_var="${RUNTIME_LIBRARY_PATH}"
-        echo "${runtime_path_var}=${!runtime_path_var:+${!runtime_path_var}:}${CONDA_PREFIX}/lib" >> "$GITHUB_ENV"
+      run: '"${{ github.action_path }}/install-arrow.sh"'
