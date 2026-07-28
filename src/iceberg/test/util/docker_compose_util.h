@@ -46,8 +46,8 @@ class DockerCompose {
   /// \brief Get the docker project name.
   const std::string& project_name() const { return project_name_; }
 
-  /// \brief Executes 'docker-compose up' to start services.
-  /// \note May throw an exception if the services fail to start.
+  /// \brief Executes 'docker-compose up' to start services, retrying on failure.
+  /// \note May throw an exception if every attempt fails to start the services.
   void Up();
 
   /// \brief Executes 'docker-compose down' to stop and remove services.
