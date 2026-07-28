@@ -19,9 +19,23 @@
 
 #include "iceberg/test/util/docker_compose_util.h"
 
+#include <chrono>
+#include <print>
+#include <stdexcept>
+#include <thread>
+
 #include "iceberg/test/util/cmd_util.h"
 
 namespace iceberg {
+
+namespace {
+
+// Compose pulls the fixture image from Docker Hub on every run, and that request
+// intermittently times out on CI runners.
+constexpr int kUpMaxAttempts = 3;
+constexpr std::chrono::seconds kUpRetryBackoff{5};
+
+}  // namespace
 
 DockerCompose::DockerCompose(std::string project_name,
                              std::filesystem::path docker_compose_dir)
@@ -31,8 +45,26 @@ DockerCompose::DockerCompose(std::string project_name,
 DockerCompose::~DockerCompose() { Down(); }
 
 void DockerCompose::Up() {
-  auto cmd = BuildDockerCommand({"up", "-d", "--wait", "--timeout", "60"});
-  return cmd.RunCommand("docker compose up");
+  for (int attempt = 1;; ++attempt) {
+    try {
+      auto cmd = BuildDockerCommand({"up", "-d", "--wait", "--timeout", "60"});
+      cmd.RunCommand("docker compose up");
+      return;
+    } catch (const std::runtime_error&) {
+      if (attempt >= kUpMaxAttempts) {
+        throw;
+      }
+      std::println(stderr, "[INFO] docker compose up attempt {}/{} failed, retrying",
+                   attempt, kUpMaxAttempts);
+      try {
+        Down();
+      } catch (const std::runtime_error&) {
+        // Nothing worth reporting: the retry re-runs up either way, and the
+        // original failure is what surfaces if attempts run out.
+      }
+      std::this_thread::sleep_for(kUpRetryBackoff * attempt);
+    }
+  }
 }
 
 void DockerCompose::Down() {
