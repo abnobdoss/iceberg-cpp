@@ -1,0 +1,156 @@
+# Throwaway measurement: how much of a Debug build's object output is Arrow,
+# and how much of that is debug information. Runs only on ci-measure-* branches.
+name: Measure object sizes
+
+on:
+  push:
+    branches:
+      - 'ci-measure-*'
+
+permissions:
+  contents: read
+
+jobs:
+  measure:
+    name: ${{ matrix.os }} Debug, debug info ${{ matrix.debug_info }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-26.04
+            debug_info: "on"
+            cmake_args: ""
+          - os: ubuntu-26.04
+            debug_info: "off"
+            cmake_args: "-DCMAKE_CXX_FLAGS_DEBUG=-O0 -DCMAKE_C_FLAGS_DEBUG=-O0 -DARROW_GGDB_DEBUG=OFF"
+          - os: windows-2025
+            debug_info: "on"
+            cmake_args: "-DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded"
+          - os: windows-2025
+            debug_info: "off"
+            cmake_args: "-DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT="
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install dependencies (Ubuntu)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: sudo apt-get update && sudo apt-get install -y libcurl4-openssl-dev libssl-dev
+
+      - name: Set up MSVC Developer Command Prompt
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        with:
+          arch: x64
+
+      - name: Cache vcpkg packages
+        if: runner.os == 'Windows'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: vcpkg-cache
+        with:
+          path: C:/vcpkg/installed
+          key: vcpkg-x64-windows-measure-${{ hashFiles('.github/workflows/measure-object-sizes.yml') }}
+
+      - name: Install dependencies (Windows)
+        if: runner.os == 'Windows' && steps.vcpkg-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          vcpkg install zlib:x64-windows nlohmann-json:x64-windows nanoarrow:x64-windows roaring:x64-windows cpr:x64-windows openssl:x64-windows
+
+      - name: Configure and build
+        shell: bash
+        env:
+          EXTRA_CMAKE_ARGS: ${{ matrix.cmake_args }}
+        run: |
+          set -euxo pipefail
+          mkdir build && cd build
+          args=(
+            -G Ninja
+            -DCMAKE_BUILD_TYPE=Debug
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+            "-DCMAKE_INSTALL_PREFIX=${RUNNER_TEMP}/iceberg-install"
+            -DICEBERG_BUILD_STATIC=ON
+            -DICEBERG_BUILD_SHARED=ON
+            -DICEBERG_CXX20_COMPAT=ON
+            -DICEBERG_ENCRYPTION=ON
+            -DICEBERG_S3=OFF
+            -DICEBERG_SIGV4=OFF
+            -DICEBERG_BUNDLE_AWSSDK=ON
+          )
+          if [[ "${RUNNER_OS}" == "Linux" ]]; then
+            export CC=gcc-14 CXX=g++-14
+            args+=(-DICEBERG_BUILD_REST_INTEGRATION_TESTS=ON)
+          else
+            args+=(-DICEBERG_BUILD_REST_INTEGRATION_TESTS=OFF)
+            args+=(-DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake)
+          fi
+          # EXTRA_CMAKE_ARGS is whitespace-split on purpose; no value contains spaces.
+          read -r -a extra <<< "${EXTRA_CMAKE_ARGS}"
+          cmake "${args[@]}" "${extra[@]}" ..
+          cmake --build .
+
+      - name: Verify the debug-info flags took effect
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd build
+          echo "== compile command for one Arrow source"
+          python3 - <<'PY'
+          import json
+          cmds = json.load(open("compile_commands.json"))
+          def show(pred, label):
+              for c in cmds:
+                  if pred(c["file"].replace("\\", "/")):
+                      print(f"-- {label}: {c['file']}")
+                      print("   " + c.get("command", " ".join(c.get("arguments", []))))
+                      return
+              print(f"-- {label}: no match")
+          show(lambda f: "/arrow-src/" in f and f.endswith("array.cc") or ("/arrow-src/" in f and "/array/" in f and f.endswith(".cc")), "arrow")
+          show(lambda f: "/src/iceberg/" in f and f.endswith(".cc") and "/test/" not in f, "iceberg")
+          PY
+          echo "== debug sections in one Arrow object"
+          obj=$(find _deps/arrow-build -type f \( -name '*.o' -o -name '*.obj' \) -path '*array*' | head -1)
+          echo "object: ${obj}"
+          if [[ "${RUNNER_OS}" == "Linux" ]]; then
+            readelf -S "${obj}" | grep -c '\.debug_' || echo "no .debug_ sections"
+          else
+            dumpbin //HEADERS "${obj}" | grep -c 'debug\$' || echo "no debug\$ sections"
+          fi
+
+      - name: Measure object sizes by component
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd build
+          echo "== raw object bytes by component"
+          find . -type f \( -name '*.o' -o -name '*.obj' \) -printf '%s %p\n' | awk '
+            {
+              p=$2; g="unmatched";
+              if (p ~ /^\.\/_deps\/arrow-build\/.*_ep/) g="arrow bundled deps";
+              else if (p ~ /^\.\/_deps\/arrow-build\//) g="arrow + parquet";
+              else if (p ~ /^\.\/_deps\//) g="other vendored deps";
+              else if (p ~ /^\.\/src\//) g="iceberg";
+              n[g]++; s[g]+=$1; tn++; ts+=$1
+            }
+            END {
+              for (g in s) printf "%-22s %6d files %9.1f MiB\n", g, n[g], s[g]/1048576;
+              printf "%-22s %6d files %9.1f MiB\n", "TOTAL", tn, ts/1048576
+            }'
+          echo
+          echo "== gzip-compressed tar of each component (proxy for the sccache entry)"
+          gz() {
+            local label=$1; shift
+            local bytes
+            bytes=$(find . -type f \( -name '*.o' -o -name '*.obj' \) "$@" -print0 | tar --null -T - -cf - | gzip -6 | wc -c)
+            awk -v l="${label}" -v b="${bytes}" 'BEGIN { printf "%-22s %9.1f MiB gzip\n", l, b/1048576 }'
+          }
+          gz "arrow bundled deps"  -path './_deps/arrow-build/*' -path '*_ep*'
+          gz "arrow + parquet"     -path './_deps/arrow-build/*' -not -path '*_ep*'
+          gz "other vendored deps" -path './_deps/*' -not -path './_deps/arrow-build/*'
+          gz "iceberg"             -path './src/*'
+          gz "TOTAL"
