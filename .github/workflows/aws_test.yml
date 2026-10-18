@@ -21,6 +21,7 @@ on:
   push:
     branches:
       - main
+      - 'ci-measure-*'
     tags:
       - '**'
   pull_request:
@@ -126,6 +127,7 @@ jobs:
         shell: bash
         env:
           CMAKE_TOOLCHAIN_FILE: ${{ startsWith(matrix.runs-on, 'ubuntu') && matrix.bundle_awssdk == 'OFF' && '/usr/local/share/vcpkg/scripts/buildsystems/vcpkg.cmake' || '' }}
+          ICEBERG_EXTRA_CMAKE_ARGS: "-DCMAKE_CXX_FLAGS_DEBUG=-O0 -DCMAKE_C_FLAGS_DEBUG=-O0 -DARROW_GGDB_DEBUG=OFF"
         run: |
           ci/scripts/build_iceberg.sh \
             --source-dir "$(pwd)" \

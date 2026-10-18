@@ -19,7 +19,11 @@ if(MSVC_TOOLCHAIN AND "${CMAKE_CXX_COMPILER_LAUNCHER}" STREQUAL "sccache")
   message(STATUS "Configuring sccache for MSVC")
 
   # Keep MSVC Debug objects cacheable by sccache without affecting Release.
-  set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug,RelWithDebInfo>:Embedded>")
+  # A caller that sets the format explicitly (for example to empty, dropping debug
+  # information) wins.
+  if(NOT DEFINED CMAKE_MSVC_DEBUG_INFORMATION_FORMAT)
+    set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug,RelWithDebInfo>:Embedded>")
+  endif()
 
   # CMP0141 normally handles these flags; normalize any flags injected elsewhere.
   foreach(flag_var CMAKE_C_FLAGS_DEBUG CMAKE_CXX_FLAGS_DEBUG CMAKE_C_FLAGS_RELWITHDEBINFO
